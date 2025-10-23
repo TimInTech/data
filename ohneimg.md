@@ -1,3 +1,6 @@
+https://chatgpt.com/share/68fa8e78-3b88-8013-b96a-636c1c93be76
+
+
 Kurz: Du kannst direkt vom Stick retten. Risiko ist höher als mit Image, aber ok. So gehst du auf dem **Mac** weiter. Am Ende steht eine Kurzvariante für Linux.
 
 ## macOS: direkte Rettung ohne Image
