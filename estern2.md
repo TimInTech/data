@@ -1,3 +1,194 @@
+Ja, du kannst neu starten, aber nicht blind. Erst drei Checks, damit du keinen Schaden machst und keinen Fortschritt verlierst. Du hast `dd` mit `Ctrl + C` sauber beendet. Das heißt: Die Datei `/Volumes/Public/Image.dd.gz` ist geschlossen und wurde auf dem externen Volume `Public` geschrieben. Das ist grundsätzlich ok. Du hast jetzt ein (wahrscheinlich unvollständiges) Abbild. Wir sichern jetzt den Zustand, prüfen Speicher, dann Neustart, dann geht die Wiederherstellung weiter nur noch vom Abbild.
+
+Ich gebe dir jetzt einen klaren Ablauf. Du gehst Schritt für Schritt durch. Nach jedem Schritt den Befehl genau so eintippen und Enter drücken. Keine zusätzlichen Zeichen tippen. Groß/Klein beachten.
+
+---
+
+1. Prüfen ob gerade noch was läuft
+
+---
+
+Ziel: Sicherstellen dass kein Kopiervorgang mehr aktiv ist. Wenn nichts mehr läuft, ist es sicher den Mac neu zu starten.
+
+Öffne ein Terminalfenster und tippe:
+
+```bash
+ps aux | grep dd
+```
+
+Erwartung:
+
+* Wenn du nur die Zeile mit `grep dd` siehst, läuft `dd` nicht mehr. Gut.
+* Wenn du noch eine Zeile siehst mit `dd if=/dev/disk...`, dann läuft es noch. In dem Fall nicht neu starten, sondern zuerst wieder in dieses Fenster gehen und `ctrl` + `c` drücken.
+
+(Hinweis: `ctrl` + `c` heißt die Strg-Taste gedrückt halten und dann c drücken. Nicht `ctrl + c` schreiben.)
+
+---
+
+2. Größe des Abbilds auf der externen Festplatte prüfen
+
+---
+
+Damit stellen wir fest, dass die Datei wirklich existiert und geschlossen ist.
+
+```bash
+ls -lh /Volumes/Public/Image.dd.gz
+```
+
+Du bekommst eine Ausgabe wie z. B. `24G` oder `80G` oder ähnlich. Damit wissen wir: Die Rettungsdatei liegt wirklich auf der externen Platte `Public` und nicht intern.
+
+Wenn dieser Befehl „No such file or directory“ zurückgibt, ist etwas schief. Dann keinen Neustart und nochmal melden.
+
+---
+
+3. Speichersituation prüfen (extern und intern)
+
+---
+
+a) Freier Platz auf der externen Platte `Public`:
+
+```bash
+df -h /Volumes/Public
+```
+
+Merke dir die Zahl in der Spalte `Avail` (frei). Das muss deutlich zweistellig in `Gi` sein, sonst wirst du später kein entpacktes Image mehr erzeugen können.
+
+b) Freier Platz auf deinem internen Systemlaufwerk (das ist dein Mac selbst):
+
+```bash
+df -h ~
+```
+
+Wichtig:
+
+* Wenn hier wieder mehrere `Gi` frei sind (z. B. 10Gi, 20Gi, mehr), dann ist das System wieder atembar.
+* Wenn hier nur `Mi` frei stehen (so wie vorher, 398Mi, 300Mi), dann darfst du nicht sofort neu starten, weil macOS evtl. nicht sauber hochkommt.
+
+Falls noch extrem wenig frei ist, verschiebe große Ordner aus deinem Benutzerordner (`Downloads`, `Bilder`, `recup_dir`, usw.) auf die externe Platte. Beispiel:
+
+```bash
+mv "/Users/paminagrewe-remberg/Downloads" "/Volumes/Public/Downloads"
+```
+
+Dann nochmal:
+
+```bash
+df -h ~
+```
+
+Ziel: mindestens 5 GiB frei, besser >10 GiB frei.
+
+Wenn du diese Luft wieder hast, ist Neustart unkritisch.
+
+---
+
+4. Was du nach dem Neustart tust
+
+---
+
+Nach dem Neustart NICHT sofort wieder `dd` starten. Erst verifizieren, ob dein Abbild sinnvoll ist. Die nächsten Schritte sind:
+
+Schritt 4.1: Gzip-Image auf Fehler testen (ohne zu entpacken, dauert kurz):
+
+```bash
+gunzip -t /Volumes/Public/Image.dd.gz
+```
+
+* Wenn kein Fehler kommt und du wieder eine Eingabezeile bekommst: Das komprimierte Abbild ist technisch lesbar.
+* Wenn `unexpected end of file` kommt: Das Abbild ist abgebrochen. Du kannst trotzdem versuchen, daraus noch Daten zu holen. Es ist halt nicht komplett.
+
+Schritt 4.2: Abbild entpacken in eine Rohdatei. Diese Rohdatei benutzen wir später für PhotoRec. Wichtig: Das passiert alles auf der externen Platte `Public`, nicht intern.
+
+```bash
+gunzip -c /Volumes/Public/Image.dd.gz > /Volumes/Public/Image.dd
+```
+
+Hinweis: Dafür muss auf `/Volumes/Public` genug Platz frei sein. Im Idealfall mindestens so viel wie die Größe deines USB-Sticks (ungefähr 128 GB). Wenn `df -h /Volumes/Public` zeigt, dass nicht genug frei ist, dann zuerst Platz schaffen.
+
+Schritt 4.3: PhotoRec auf dem entpackten Abbild laufen lassen, nicht mehr auf dem echten Stick:
+
+```bash
+sudo photorec /Volumes/Public/Image.dd
+```
+
+In PhotoRec:
+
+* `File Opt` öffnen.
+* Nur sinnvolle Typen aktiv lassen:
+
+  * `jpg`, `jpeg`, `png`, `heic` (Fotos)
+  * `mov` (Videos)
+  * `txt`, `pdf` (Dokumente)
+* Alles andere abwählen (`mp3`, `DS_Store`, etc. brauchst du nicht).
+* `Options`: `Keep corrupted files` = `No`.
+* `Search`: `Other`.
+* Zielordner auswählen:
+  `/Volumes/Public/recovery`
+  (Wenn `recovery` nicht existiert, vorher anlegen:)
+
+  ```bash
+  mkdir -p /Volumes/Public/recovery
+  ```
+
+Dann laufen lassen.
+
+Wichtig: Ab jetzt geht nichts mehr auf deine interne SSD. Alles bleibt auf `Public`. Das schützt dein System.
+
+---
+
+5. Sehr wichtig: vor Neustart nicht nochmal `dd` starten
+
+---
+
+Auf deinem letzten Foto sieht man:
+
+* Der Befehl war `sudo dd if=/dev/disk2 bs=1m | gzip > /Volumes/Public/Image.dd.gz`
+* Passwort wurde eingegeben.
+* Dann hast du `ctrl + c` genutzt.
+* Ausgabe am Ende:
+
+  ```
+  317644+0 records in
+  317644+0 records out
+  333069680064 bytes transferred ...
+  ```
+
+  Das heißt: `dd` wurde beendet. Die Shell ist wieder bei `%`. Das heißt die Datei ist sauber geschlossen. Das ist gut. Das heißt: Du verlierst durch Neustart nicht plötzlich das, was schon geschrieben wurde.
+
+Du hast also jetzt ein Snapshot des Sticks (vielleicht nicht komplett, aber verwertbar). Es ist legitim, ab jetzt neu zu starten, unter zwei Bedingungen:
+
+1. Auf deiner internen SSD ist wieder ausreichend freier Platz (siehe Schritt 3b).
+2. Die externe Platte `Public` bleibt angeschlossen, oder du trennst sie sauber (rechtsklick „Auswerfen“ im Finder), bevor du runterfährst.
+
+Wenn Punkt 1 nicht erfüllt ist (also dein internes Laufwerk ist weiter bei 0 % frei), dann zuerst Platz frei machen wie oben beschrieben, sonst riskierst du Boot-Probleme.
+
+---
+
+6. Kurze To-do-Liste für dich zum Abarbeiten
+
+7. `ps aux | grep dd`
+   Prüfen, dass dd wirklich aus ist.
+
+8. `ls -lh /Volumes/Public/Image.dd.gz`
+   Prüfen, dass die Datei da ist.
+
+9. `df -h ~`
+   Sicherstellen, dass dein internes Laufwerk wieder mehrere GiB frei hat. Wenn nicht: große Ordner mit `mv` auf `/Volumes/Public` verschieben. Dann nochmal `df -h ~`.
+
+Wenn diese drei Punkte ok sind, kannst du normal neu starten.
+
+Nach dem Neustart:
+
+* `gunzip -t /Volumes/Public/Image.dd.gz`
+* `gunzip -c /Volumes/Public/Image.dd.gz > /Volumes/Public/Image.dd`
+* `sudo photorec /Volumes/Public/Image.dd` mit Ziel `/Volumes/Public/recovery`
+
+Das ist der saubere weitere Weg ohne erneut auf die volle interne SSD zu schreiben und ohne nochmal `dd` neu anzuschmeißen.
+
+
+####
+#
+
 Gut erkannt – dein Screenshot bestätigt:
 Du führst gerade diesen Befehl aus:
 
