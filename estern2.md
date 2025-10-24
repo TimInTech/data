@@ -87,8 +87,8 @@ ls -lh /Volumes/Public
 Dann bekommst du Schritt-für-Schritt die Befehle, die du 1:1 kopieren kannst.
 
 ###
-
-
+STOP
+####
 Ja, du kannst neu starten, aber nicht blind. Erst drei Checks, damit du keinen Schaden machst und keinen Fortschritt verlierst. Du hast `dd` mit `Ctrl + C` sauber beendet. Das heißt: Die Datei `/Volumes/Public/Image.dd.gz` ist geschlossen und wurde auf dem externen Volume `Public` geschrieben. Das ist grundsätzlich ok. Du hast jetzt ein (wahrscheinlich unvollständiges) Abbild. Wir sichern jetzt den Zustand, prüfen Speicher, dann Neustart, dann geht die Wiederherstellung weiter nur noch vom Abbild.
 
 Ich gebe dir jetzt einen klaren Ablauf. Du gehst Schritt für Schritt durch. Nach jedem Schritt den Befehl genau so eintippen und Enter drücken. Keine zusätzlichen Zeichen tippen. Groß/Klein beachten.
