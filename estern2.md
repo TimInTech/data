@@ -1,3 +1,94 @@
+Perfekt. Auf dem Foto sieht man zwei Dinge:
+
+1. **Der Befehl `caffeinate -dimsu` läuft erfolgreich**
+   → Der Mac bleibt jetzt dauerhaft wach und geht **nicht** in den Standby oder Ruhezustand.
+   → Du kannst das Terminalfenster einfach geöffnet lassen. Kein weiterer Befehl nötig.
+   → Wenn du das Fenster später schließen willst, beendest du den Vorgang mit `Ctrl + C`.
+
+2. **Die Prozessliste (`ps aux | grep dd`) zeigt:**
+   Kein `dd`-Prozess läuft mehr → deine Kopie wurde **sauber beendet**.
+   Das heißt: Die Datei `/Volumes/Public/Image.dd.gz` wurde korrekt geschlossen und ist sicher gespeichert.
+
+---
+
+### ✅ Zusammengefasst: Dein aktueller Zustand ist stabil
+
+* Kein aktiver Kopiervorgang mehr.
+* Abbild (`Image.dd.gz`) existiert.
+* Mac bleibt wach dank `caffeinate`.
+* Du kannst jetzt **ruhig neu starten**, **aber erst nach dieser kurzen Checkliste:**
+
+---
+
+### 🔍 Letzter Sicherheitscheck vor Neustart
+
+**1. Prüfen, ob die Datei vollständig auf der externen Festplatte liegt:**
+
+```bash
+ls -lh /Volumes/Public/Image.dd.gz
+```
+
+→ Notiere die Größe (z. B. 24 G, 80 G, 110 G).
+Wenn sie > 100 GB ist, ist das Image ziemlich vollständig.
+
+**2. Externes Laufwerk sicher auswerfen (wenn du jetzt wirklich neu startest):**
+
+* Im Finder links auf „Public“ klicken.
+* Dann im Finder-Menü oder Kontextmenü „Auswerfen“ wählen.
+* Warten, bis das Laufwerk im Finder verschwindet.
+
+**3. Jetzt kannst du den Mac neu starten.**
+Einfach über das Apple-Menü → „Neustart“.
+
+---
+
+### 🧩 Nach dem Neustart (nächste Schritte)
+
+1. Externe Festplatte („Public“) wieder anschließen.
+
+2. Prüfen, ob dein Image da ist:
+
+   ```bash
+   ls -lh /Volumes/Public/Image.dd.gz
+   ```
+
+3. Teste, ob das Abbild fehlerfrei ist:
+
+   ```bash
+   gunzip -t /Volumes/Public/Image.dd.gz
+   ```
+
+   * Wenn **keine Fehlermeldung** kommt → alles gut.
+   * Wenn „unexpected end of file“ erscheint → Image unvollständig, aber trotzdem verwertbar.
+
+4. Dann (nur wenn genug Speicherplatz frei ist) das Abbild entpacken:
+
+   ```bash
+   gunzip -c /Volumes/Public/Image.dd.gz > /Volumes/Public/Image.dd
+   ```
+
+5. **Danach PhotoRec auf diesem Image laufen lassen**, nicht mehr auf dem USB-Stick:
+
+   ```bash
+   sudo photorec /Volumes/Public/Image.dd
+   ```
+
+   Ziel: `/Volumes/Public/recovery`
+
+---
+
+Wenn du willst, kann ich dir den exakten nächsten Befehl (inkl. Kontrolle der Größe und Pfade) vorbereiten —
+dazu bitte nur **eine letzte Terminalausgabe** schicken von:
+
+```bash
+ls -lh /Volumes/Public
+```
+
+Dann bekommst du Schritt-für-Schritt die Befehle, die du 1:1 kopieren kannst.
+
+###
+
+
 Ja, du kannst neu starten, aber nicht blind. Erst drei Checks, damit du keinen Schaden machst und keinen Fortschritt verlierst. Du hast `dd` mit `Ctrl + C` sauber beendet. Das heißt: Die Datei `/Volumes/Public/Image.dd.gz` ist geschlossen und wurde auf dem externen Volume `Public` geschrieben. Das ist grundsätzlich ok. Du hast jetzt ein (wahrscheinlich unvollständiges) Abbild. Wir sichern jetzt den Zustand, prüfen Speicher, dann Neustart, dann geht die Wiederherstellung weiter nur noch vom Abbild.
 
 Ich gebe dir jetzt einen klaren Ablauf. Du gehst Schritt für Schritt durch. Nach jedem Schritt den Befehl genau so eintippen und Enter drücken. Keine zusätzlichen Zeichen tippen. Groß/Klein beachten.
