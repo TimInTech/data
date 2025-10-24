@@ -1,288 +1,317 @@
-Ziel: Dein Mac ist voll. Er droht abzustürzen. Wir müssen jetzt Platz freimachen, die bereits geretteten Dateien sichern und die Wiederherstellung korrekt neu starten. Du bekommst eine klare Schritt-für-Schritt-Anleitung mit den tatsächlichen Pfaden aus deinen Screenshots.
+Stand jetzt:
 
-Wichtige Fakten aus deinen Bildern:
+* Dein interner Speicher ist praktisch voll (nur ~400 MiB frei). Das ist kritisch.
+* Auf dem externen Laufwerk `Public` liegt schon eine angefangene Sicherung: `/Volumes/Public/Image.dd.gz`, zuletzt ca. 24G groß. Diese Sicherung ist unvollständig, weil der Prozess offenbar abgebrochen wurde, als macOS wegen Speichermangel fast stehengeblieben ist.
+* Du hast schon direkt vom Stick `/dev/disk2` mit `dd` gelesen und per `gzip` komprimiert und nach `/Volumes/Public/Image.dd.gz` geschrieben. Das ist fachlich sinnvoll.
+* Wir müssen jetzt zuerst Speicher intern freimachen, dann das Image auf dem externen Laufwerk sauber neu erstellen, dann erst daraus wiederherstellen.
+* Ab jetzt darf nichts mehr auf die interne SSD geschrieben werden. Alles muss auf `/Volumes/Public` landen.
 
-* Benutzername: `paminagrewe-remberg`
-* Bisheriges Wiederherstellungsziel: `/Users/paminagrewe-remberg/recup_dir`
-* Quellgerät: `/dev/rdisk7` (USB-Stick, 128 GB)
-* Der Mac hat fast 0 Speicher frei. Fehlermeldung „Dein System hat keinen Programmspeicher mehr.“
-* TestDisk wollte ein Image `image.dd` erzeugen und hat die Platte gefüllt.
-* Ergebnis: System ist kurz vorm Absturz.
-
-Wir gehen jetzt so vor:
-
-1. Rettung anhalten.
-2. Speicher freiräumen.
-3. Externe Festplatte einbinden.
-4. Gerettete Daten von der internen SSD auf die externe Festplatte verschieben.
-5. Symlink setzen, damit PhotoRec weiterarbeiten kann, aber auf extern schreibt.
-6. Speicher prüfen.
-7. Recovery korrekt neu starten.
-
-Ich schreibe dir jeden Schritt. Nach jedem Schritt führst du den angegebenen Befehl in der Konsole aus. Immer Enter drücken nach dem Befehl.
+Ich gebe dir jetzt eine bereinigte Schritt-für-Schritt-Anleitung. Du gehst sie der Reihe nach durch. Jede Code-Zeile einzeln eintippen und mit Enter bestätigen.
 
 ---
 
-1. Schritt: Offene Recovery stoppen
+1. Schritt: Alle Rettungstools stoppen
 
 ---
 
-Falls PhotoRec oder TestDisk noch laufen und Text im Terminal hochscrollt oder ein Menü offen ist:
-Drücke gleichzeitig die Tasten `ctrl` und `c`.
+Wenn PhotoRec, TestDisk oder dd noch laufen oder hängen:
 
-Das stoppt den Prozess.
-Wenn PhotoRec ein Menü zeigt und unten eine Auswahl wie `[Stop]`, kannst du auch mit den Pfeiltasten auf „Stop“ gehen und Enter drücken.
+* Gehe in das jeweilige Terminal-Fenster.
+* Drücke `ctrl` + `c`.
 
-Kein weiterer Befehl hier.
+Wenn ein Tool im Terminal ein Menü zeigt (z. B. `[Stop]`), dann mit Pfeiltasten auf `Stop` und Enter.
 
----
+Ziel: Keine weiteren Daten sollen mehr auf die interne SSD laufen.
 
-2. Schritt: Die große angefangene Image-Datei löschen
-
----
-
-In deinen Bildern lag eine Datei `image.dd` auf dem Schreibtisch (Desktop).
-Diese Datei ist unvollständig und belegt viel Speicher. Die brauchen wir nicht.
-
-Gib ein:
-
-```bash
-rm -i ~/Desktop/image.dd
-```
-
-Der Mac fragt dich dann `remove ...?`.
-Gib `y` ein.
-Drück Enter.
-
-Damit löschst du das halbfertige Abbild, das TestDisk angelegt hat.
+Kein Befehl hier.
 
 ---
 
-3. Schritt: Externe Festplatte anschließen
+2. Schritt: Prüfen, wie das externe Laufwerk heißt
 
 ---
 
-Stecke jetzt ein externes Laufwerk an den Mac (USB-Festplatte oder großer USB-Stick).
-Wichtig: Das Laufwerk muss mehr freien Speicher haben als die internen 53 GiB, besser deutlich mehr (128 GiB oder mehr ist sinnvoll).
+Du hast in den Screenshots `/Volumes/Public` benutzt. Ich gehe davon aus, dass die externe Platte als `Public` eingehängt ist.
 
-Wenn das Laufwerk eingesteckt ist, gib ein:
+Zur Sicherheit:
 
 ```bash
 ls /Volumes
 ```
 
-Du bekommst eine Liste.
-Da steht immer `Macintosh HD` (das ist intern) und zusätzlich der Name deiner externen Festplatte. Beispiel: `Backup` oder `UNTITLED`.
-Du brauchst diesen Namen gleich. Ich nenne ihn im Rest der Anleitung `NAME`. Du ersetzt `NAME` durch den echten Namen aus der Liste.
-
-Kein weiterer Befehl hier. Du merkst dir nur den Namen.
+Wenn du siehst `Public`, dann ist alles so wie in den Screenshots. Falls der Name anders ist, musst du in allen folgenden Befehlen `Public` durch diesen echten Namen ersetzen.
 
 ---
 
-4. Schritt: Zielordner auf externer Festplatte anlegen
+3. Schritt: Ordner für die geretteten Daten auf der externen Platte anlegen
 
 ---
 
-Wir erstellen dort einen Ordner für die geretteten Dateien.
+Wir sammeln alles dort. Du schreibst nichts mehr in dein Benutzerverzeichnis.
 
 ```bash
-mkdir -p "/Volumes/NAME/recovery"
+mkdir -p "/Volumes/Public/recovery"
 ```
 
-Wichtig: `"NAME"` wirklich ersetzen durch den angezeigten Namen des externen Laufwerks aus Schritt 3.
-Die Anführungszeichen unbedingt mit eingeben. Die verhindern Probleme bei Leerzeichen.
-
-Beispiel falls das Laufwerk „Backup Pamina“ heißt:
-
-```bash
-mkdir -p "/Volumes/Backup Pamina/recovery"
-```
+Dieser Befehl erstellt `/Volumes/Public/recovery`, falls er noch nicht existiert.
 
 ---
 
-5. Schritt: Finde deine bisherigen Wiederherstellungsdaten
+4. Schritt: Verschiebe vorhandene PhotoRec-Ergebnisse von intern nach extern
 
 ---
 
-PhotoRec hat laut Screenshot nach `/Users/paminagrewe-remberg/recup_dir` geschrieben.
-Wir prüfen jetzt, wo diese Ordner genau liegen und wie sie heißen.
-
-Gib ein:
-
-```bash
-find /Users/paminagrewe-remberg -maxdepth 2 -type d -iname "recup_dir*"
-```
-
-Erwartung: Du siehst einen oder mehrere Pfade wie
+PhotoRec hat laut deinem ersten Screenshot alles nach
 `/Users/paminagrewe-remberg/recup_dir`
-oder
-`/Users/paminagrewe-remberg/recup_dir.1`
+gespeichert.
 
-Diese Ordner enthalten deine bereits geretteten Fotos, Videos, Texte.
-
-Kein weiterer Befehl hier. Du merkst dir die Pfade.
-
----
-
-6. Schritt: Diese geretteten Daten auf die externe Festplatte verschieben
-
----
-
-Beispiel: Angenommen `find` hat dir genau diesen Ordner gezeigt:
-
-`/Users/paminagrewe-remberg/recup_dir`
-
-Dann verschiebst du ihn jetzt rüber auf die externe Platte in den `recovery` Ordner:
+Wir verschieben diesen Ordner jetzt komplett rüber auf die externe Platte, damit deine interne SSD wieder Luft hat.
 
 ```bash
-mv "/Users/paminagrewe-remberg/recup_dir" "/Volumes/NAME/recovery/recup_dir"
+mv "/Users/paminagrewe-remberg/recup_dir" "/Volumes/Public/recovery/recup_dir"
 ```
 
-Wenn `find` zusätzlich noch so etwas gefunden hat wie
-`/Users/paminagrewe-remberg/recup_dir.1`
-dann verschiebst du den auch:
+Wenn du zusätzlich noch weitere Ordner hast wie `recup_dir.1`, `recup_dir.2`, dann verschiebe die genauso:
 
 ```bash
-mv "/Users/paminagrewe-remberg/recup_dir.1" "/Volumes/NAME/recovery/recup_dir.1"
+mv "/Users/paminagrewe-remberg/recup_dir.1" "/Volumes/Public/recovery/recup_dir.1"
 ```
-
-Diese `mv` Befehle geben dir sofort wieder viel freien Speicher auf der internen SSD, weil du nichts kopierst, sondern verschiebst.
-
----
-
-7. Schritt: Verknüpfung zurück anlegen (Symlink)
-
----
-
-Warum das wichtig ist:
-PhotoRec versucht beim nächsten Lauf wieder nach `/Users/paminagrewe-remberg/recup_dir` zu schreiben.
-Wir legen jetzt eine Art „Alias“ an. Dieser Alias zeigt intern auf den Ordner, der in Wahrheit auf der externen Festplatte liegt.
-Das heißt: Ab jetzt landet jede neue gerettete Datei direkt auf der externen Festplatte.
-
-Gib ein:
 
 ```bash
-ln -s "/Volumes/NAME/recovery/recup_dir" "/Users/paminagrewe-remberg/recup_dir"
+mv "/Users/paminagrewe-remberg/recup_dir.2" "/Volumes/Public/recovery/recup_dir.2"
 ```
 
-Hinweis: Wenn der Befehl meckert, dass `/Users/paminagrewe-remberg/recup_dir` schon existiert, dann wurde der Ordner vorher nicht verschoben. In dem Fall musst du Schritt 6 zuerst richtig ausführen, so dass `recup_dir` weg ist, bevor du den Link setzt.
+Falls einer dieser Ordner nicht existiert, meldet macOS „No such file or directory“. Das ist normal. Dann einfach weiter.
 
 ---
 
-8. Schritt: Prüfen ob jetzt wieder Speicher frei ist
+5. Schritt: Verknüpfung (Symlink) zurück anlegen
 
 ---
 
-Gib ein:
+Wir legen jetzt am alten Speicherort einen Link an, der auf die externe Platte zeigt. So glaubt PhotoRec später, es schreibt wieder nach `recup_dir`, in Wahrheit speichert es aber direkt auf `/Volumes/Public/recovery`.
+
+```bash
+ln -s "/Volumes/Public/recovery/recup_dir" "/Users/paminagrewe-remberg/recup_dir"
+```
+
+Wenn der Link nicht erstellt werden kann, weil `/Users/paminagrewe-remberg/recup_dir` noch existiert, dann war der `mv` aus Schritt 4 nicht erfolgreich. In dem Fall Schritt 4 wiederholen.
+
+---
+
+6. Schritt: Kaputte riesige Dateien löschen, die internen Speicher blockieren
+
+---
+
+Die internen Screenshots zeigen `image.dd` bzw. `image.dd.gz` Versuche und die Warnung „kein Programmspeicher mehr“. Eine unvollständige Sicherung auf dem Schreibtisch (`~/Desktop/image.dd`) kann die interne SSD vollmachen.
+
+Wir löschen nur die interne Kopie. Die externe Kopie unter `/Volumes/Public/Image.dd.gz` lassen wir stehen.
+
+```bash
+rm -i ~/Desktop/image.dd
+```
+
+Wenn die Datei dort nicht liegt, meldet er „No such file or directory“. Das ist ok.
+
+---
+
+7. Schritt: Prüfen, ob wieder freier Platz da ist
+
+---
+
+Jetzt schauen wir den freien Platz deiner internen SSD an. Das muss hochgehen. Vorher warst du bei nur ~398 MiB frei (100 % voll, das ist extrem schlecht). Ziel ist mehrere Gigabyte frei.
 
 ```bash
 df -h ~
 ```
 
-Wichtig: In der Spalte `Avail` solltest du wieder mehrere Gigabyte frei sehen.
-Wenn da wieder nur Megabyte frei stehen (z. B. „20Mi“ oder „300Mi“), dann ist dein interner Speicher immer noch zu voll.
-Dann musst du weitere große Ordner von deinem Benutzer-Ordner auf die externe Platte verschieben.
+Interpretation:
 
-Liste die größten Ordner in deinem Benutzerverzeichnis sortiert nach Größe:
+* Spalte `Avail` muss wieder mehrere „Gi“ anzeigen, nicht „Mi“.
+* Wenn du immer noch fast 100 % voll bist: Dann musst du weitere große Ordner auf die externe Platte verschieben. Typisch: `Downloads`, `Bilder`, `Filme`.
+
+Beispiel Analyse der größten Ordner:
 
 ```bash
 du -sh /Users/paminagrewe-remberg/* | sort -h
 ```
 
-Wenn du hier z. B. einen Ordner siehst wie `Downloads` mit vielen GB, kannst du den ebenfalls verschieben:
-
-Beispiel:
+Wenn du dort z. B. einen großen `Downloads` Ordner siehst (nur Beispiel):
 
 ```bash
-mv "/Users/paminagrewe-remberg/Downloads" "/Volumes/NAME/recovery/Downloads"
+mv "/Users/paminagrewe-remberg/Downloads" "/Volumes/Public/recovery/Downloads"
 ```
 
-Danach wieder testen:
+Dann wieder prüfen:
 
 ```bash
 df -h ~
 ```
 
-Zielwert: mindestens 10 GiB frei, besser 20 GiB frei, bevor du weitermachst.
+Du darfst erst weiterarbeiten, wenn intern wieder mindestens 10 GiB frei sind. Besser >20 GiB.
+
+Warum: Dein Mac lag vorher im Zustand „kein Programmspeicher mehr“. Das heißt RAM + Swap waren erschöpft. Das killt Prozesse mitten in der Rettung.
 
 ---
 
-9. Schritt: PhotoRec korrekt neu starten
+8. Schritt: Sauberes, vollständiges Abbild des USB-Sticks direkt nach extern schreiben
 
 ---
 
-Ab jetzt wird direkt auf die externe Festplatte gespeichert, aber PhotoRec denkt, er schreibt nach `recup_dir` im Benutzerordner.
-Das ist korrekt so. Genau das wollten wir.
+Wichtig: Wir machen jetzt ein vollständiges sektorweises Abbild vom Stick. Das ist besser als nur einzelne Dateien zu retten. Danach kannst du den Stick abziehen und weiterarbeiten ohne Risiko.
 
-Starte PhotoRec wieder:
+1. Zuerst prüfen, welches Device dein Stick ist. In deinen Screenshots tauchen `/dev/rdisk7` und `/dev/disk2` auf. Das wechselt, je nach erneutem Einstecken. Wir checken jetzt sauber:
 
 ```bash
-sudo photorec /dev/rdisk7
+diskutil list
 ```
 
-Du bist wieder im PhotoRec-Menü.
+Suche den Eintrag mit ungefähr 128 GB. Der heißt z. B. `/dev/disk2`.
+Merke dir diese Nummer (ich nenne sie hier `/dev/disk2`).
+Für dd nimmst du dann die Raw-Variante `/dev/rdisk2`. Wenn `rdisk2` nicht existiert, bleib bei `disk2`.
 
-Jetzt die Einstellungen machen, damit nicht unnötig Müll gezogen wird und damit der Speicher nicht sofort wieder vollläuft:
+2. Hänge den Stick aus, damit nichts drauf geschrieben wird:
 
-1. Wähle das Laufwerk `/dev/rdisk7`.
-2. Wähle „Whole disk“ oder die APFS-Partition.
-3. Gehe in `File Opt`.
-4. Schalte nur diese Dateitypen ein:
+```bash
+diskutil unmountDisk /dev/disk2
+```
 
-   * `jpg`, `jpeg`, `png`, `heic` (Fotos)
-   * `mov` (Videos vom iPhone oder Kamera)
-   * `txt`, `pdf` (Dokumente/Notizen)
-     Alle anderen Typen abwählen. Du brauchst z. B. keine `mp3`, keine `DS_Store`, keinen Apple-Metadaten-Schrott.
-5. Gehe auf `Options`.
-6. Stelle `Keep corrupted files` auf `No`.
-7. Wähle `Search`.
-8. Wähle `Other`.
-9. Wenn PhotoRec dich nach dem Ziel fragt, zeige ihm den Pfad:
-   `/Users/paminagrewe-remberg/recup_dir`
-   Dieser Pfad zeigt jetzt in Wirklichkeit auf `/Volumes/NAME/recovery/recup_dir`, also direkt externe Festplatte.
+Wenn deine Nummer anders ist, ersetze `disk2`.
 
-Dann starten lassen.
+3. Führe jetzt das Abbild aus, direkt komprimiert auf die externe Platte. Du hast das schon fast richtig gemacht im Screenshot:
+
+```bash
+sudo dd if=/dev/rdisk2 bs=1m | gzip > "/Volumes/Public/Image.dd.gz"
+```
+
+Erklärung:
+
+* `sudo dd if=/dev/rdisk2 bs=1m` liest den kompletten Stick Sektor für Sektor.
+* `| gzip` komprimiert das on-the-fly, damit es weniger Platz auf `Public` braucht.
+* `> "/Volumes/Public/Image.dd.gz"` speichert die komprimierte Sicherung direkt auf die externe Platte, nicht auf deine volle interne SSD.
+
+Nach Enter fragt er nach dem Passwort. Gib dein macOS-Admin-Passwort ein und drücke Enter. Während der Befehl läuft, kommt KEIN neuer Prompt.
+
+Fortschritt anzeigen (das war in deinem Screenshot unklar):
+Drücke während `dd` noch läuft im selben Terminalfenster die Tasten `ctrl` + `t`.
+Wichtig: Du tippst NICHT `Ctrl + T` als Text. Du drückst wirklich gleichzeitig die beiden Tasten.
+macOS zeigt dann den aktuellen Fortschritt von `dd` im Terminal.
+
+Lass diesen Schritt vollständig durchlaufen. Er ist erst fertig, wenn du wieder eine normale Eingabezeile mit `%` siehst.
+
+4. Prüfe danach die Größe der Sicherung auf der externen Platte:
+
+```bash
+ls -lh "/Volumes/Public/Image.dd.gz"
+```
+
+Wenn da nur 24G steht und du weißt, dass der Stick 128 GB groß ist, dann wurde der Vorgang zu früh beendet (z. B. vom System gekillt, weil kein Speicher frei). Dann musst du Schritt 7 (Platz schaffen) noch konsequenter machen und Schritt 8 neu starten, damit du ein vollständiges Abbild bekommst.
+
+Du willst am Ende EINEN vollständigen `Image.dd.gz`. Lösche alte Teildateien vorher, um Verwirrung zu vermeiden:
+
+```bash
+rm -i "/Volumes/Public/Image.dd.gz"
+```
+
+Dann neu starten mit dem dd-Befehl von oben. Hintergrund: Deine zweite Aufnahme zeigt mehrere Zeitstempel und Größen (3.3G, 3.7G, 5.1G, 11G, 18G, 21G, 24G). Das deutet darauf hin, dass mehrfach neu gestartet wurde und immer ein neuer `Image.dd.gz` erzeugt wurde. Ziel ist ein sauberer Durchlauf ohne Abbruch.
 
 ---
 
-10. Schritt: Während der Recovery wach bleiben
+9. Schritt: Nach erfolgreichem Abbild vom Stick weiterarbeiten nur noch vom Image
 
 ---
 
-Das hast du richtig gemacht. Weiter so.
+Wenn du ein vollständiges `Image.dd.gz` hast:
 
-Offenes Terminal-Fenster auflassen mit:
+1. Entpacke das Image (aber NICHT auf die interne SSD, nur auf die externe Platte `Public`). Du brauchst auf `Public` nochmal ungefähr die Größe des Sticks unkomprimiert.
+
+```bash
+gunzip -c "/Volumes/Public/Image.dd.gz" > "/Volumes/Public/Image.dd"
+```
+
+Jetzt existiert `/Volumes/Public/Image.dd`. Das ist eine 1:1-Kopie des gesamten Sticks. Der Stick selbst ist ab jetzt nicht mehr nötig.
+
+2. Erstelle einen Zielordner für gefundene Dateien auf der externen Platte:
+
+```bash
+mkdir -p "/Volumes/Public/recovery/final"
+```
+
+3. Starte PhotoRec auf dem Image statt auf der echten Hardware:
+
+```bash
+sudo photorec "/Volumes/Public/Image.dd"
+```
+
+In PhotoRec:
+
+* `File Opt`: nur sinnvolle Dateitypen aktivieren (`jpg`, `jpeg`, `png`, `heic`, `mov`, `txt`, `pdf`). Alle anderen abwählen.
+* `Options`: `Keep corrupted files` = `No`.
+* Wähle `Search`.
+* Wähle `Other`.
+* Zielordner für die Wiederherstellung NICHT ins Home, sondern:
+
+Pfad wählen:
+`/Volumes/Public/recovery/final`
+
+Damit landet alles direkt auf dem externen Laufwerk. Die interne SSD bleibt frei und stabil.
+
+---
+
+10. Schritt: Mac wach halten
+
+---
+
+Halte den Mac wach in einem eigenen Terminalfenster, während PhotoRec oder dd läuft:
 
 ```bash
 caffeinate -dimsu
 ```
 
-Solange dieses Fenster offen bleibt und der Befehl läuft, geht der Mac nicht schlafen.
+Solange dieses Fenster offen bleibt, geht der Mac nicht schlafen.
 
 ---
 
-11. Was du nach der Recovery machst
+11. Ergebnisprüfung am Ende
 
 ---
 
-Wenn PhotoRec fertig ist, kannst du die gefundenen Dateien im Finder prüfen:
+Wenn PhotoRec fertig ist:
 
 * Öffne den Finder.
-* Wechsle zu deiner externen Festplatte (`NAME`).
-* Öffne den Ordner `recovery`.
-* Darin liegen Ordner wie `recup_dir`, `recup_dir.1`, `recup_dir.2`, usw.
-* Diese enthalten die geretteten Fotos, Videos, Texte.
+* Gehe nach `/Volumes/Public/recovery/final`.
+* Dort liegen Ordner `recup_dir.*` mit den geretteten Dateien.
+
+Keine Daten mehr direkt auf der internen SSD sichern. Alles bleibt auf `Public`.
 
 ---
 
-## Wichtige Dinge, die du NICHT tun darfst
+## Kurz zusammengefasst
 
-Du darfst den USB-Stick `/dev/rdisk7` nicht formatieren.
-Du darfst deinen Mac jetzt nicht gewaltsam ausschalten solange die Platte 0 Byte frei hat (Crash-Risiko, Datenverlust). Erst Speicher freimachen, dann kannst du normal neu starten.
-Du darfst TestDisk nicht mehr „Image Creation“ auf interne SSD machen, weil die SSD nicht groß genug ist. (Das hat dir `image.dd` erzeugt und das System fast gekillt.)
+1. Interne Platte entlasten: `recup_dir` und alles Große nach `/Volumes/Public/recovery` verschieben.
+2. Freien Platz intern prüfen mit `df -h ~` bis wieder mehrere GiB frei sind.
+3. Stick mit `diskutil list` identifizieren und mit `diskutil unmountDisk` aushängen.
+4. Vollständiges Abbild erstellen mit
 
----
+   ```bash
+   sudo dd if=/dev/rdisk2 bs=1m | gzip > "/Volumes/Public/Image.dd.gz"
+   ```
 
-## Zusammenfassung in einem Satz
+   (ersetze ggf. `rdisk2`).
+5. Image auf `Public` entpacken zu `Image.dd`.
+6. `sudo photorec "/Volumes/Public/Image.dd"` laufen lassen und nach `/Volumes/Public/recovery/final` schreiben.
+7. `caffeinate -dimsu` offen lassen, damit nix einschläft.
 
-Du verschiebst jetzt den bisherigen Ordner `/Users/paminagrewe-remberg/recup_dir` auf ein externes Laufwerk unter `/Volumes/NAME/recovery/`, setzt dann mit `ln -s` einen Link zurück, prüfst mit `df -h ~`, und startest `sudo photorec /dev/rdisk7` neu mit reduziertem Dateitypenset, damit nur wirklich wichtige Dateien weitergerettet werden.
+Wenn du mir jetzt zwei Ausgaben lieferst
+
+```bash
+ls /Volumes
+```
+
+und
+
+```bash
+diskutil list
+```
+
+kann ich dir die genauen Befehle mit deinem tatsächlichen Gerätenamen (z. B. `/dev/rdisk7` vs `/dev/rdisk2`) und deinem echten Volume-Namen statt `Public` schreiben, so dass du sie 1:1 kopieren kannst.
