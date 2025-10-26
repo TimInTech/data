@@ -1,113 +1,213 @@
-Das Verhalten ist typisch für zwei Fälle. Entweder (1) das Volume ist nicht gemountet auf macOS oder (2) der Partitionsstil / die Partition selbst ist nicht als „externes Volume“ sauber gemountet, obwohl sie im Festplattendienstprogramm sichtbar ist.
+Ziel: Die externe Festplatte soll auf dem Mac normal im Finder erscheinen, ohne Linux. Du bekommst eine klare Schritt-für-Schritt-Anleitung, die eine nicht-technische Person am Mac alleine ausführen kann. Sie deckt beide Fälle ab: Platte ist leer oder Platte enthält schon Daten.
 
-Wir gehen systematisch durch. Du brauchst dafür kurz den Mac. Ich gebe dir die Prüfschritte und die Fix-Schritte. Du kannst sie exakt so ausführen im macOS Terminal.
+Ich nenne die Festplatte hier „RECOVERY500“. Wenn bei dir ein anderer Name angezeigt wird, ist das egal.
 
-1. Zeig mir, wie macOS die Platte sieht
-   Auf dem Mac Terminal:
+---
+
+1. Festplatte anschließen
+   Schließe die externe Festplatte per USB am Mac an.
+   Wenn ein Fenster kommt mit
+   „Das angeschlossene Medium konnte von diesem Computer nicht gelesen werden“
+   dann klicke auf „Ignorieren“. Nicht „Auswerfen“.
+
+---
+
+2. Terminal öffnen
+   Öffne das Terminal auf dem Mac:
+   Klicke unten im Dock auf das Launchpad (graues Rakettsymbol)
+   Suche nach „Terminal“
+   Starte Terminal.
+
+Wir arbeiten jetzt nur noch in diesem Terminal.
+
+---
+
+3. Prüfen, wie die Festplatte heißt
+   Gib im Terminal ein:
 
 ```bash
 diskutil list
 ```
 
-Finde dort deine externe Platte. Das ist typischerweise `disk3` oder `disk4` o. ä. Du siehst dann so etwas wie:
+Drücke Enter.
 
-* `GUID_partition_scheme`
-* `Microsoft Basic Data` (Name RECOVERY500)
+Der Mac zeigt jetzt alle Speichergeräte. Du siehst mehrere Blöcke:
 
-Wenn du mir diesen Block kopierst, kann ich exakt sagen wo das Problem liegt. Falls du das nicht sofort kopieren willst, geh direkt zu Schritt 2.
+* `disk0` ist fast immer die eingebaute Mac-SSD. Finger weg.
+* Weiter unten findest du etwas wie `disk2` oder `disk3` oder `disk4` mit Größe ungefähr 500 GB. Das ist deine externe Festplatte.
+  In diesem Block steht oben z. B. `GUID_partition_scheme`.
+  Darunter steht eine Zeile mit etwas wie `disk3s1` und Typ `Microsoft Basic Data` oder `Windows_NTFS` oder `Linux Filesystem` oder eventuell `Untitled`.
 
-2. Versuch das Volume manuell zu mounten
-   Ersetze `disk3s1` durch den Identifier deiner einzigen Partition. Das ist die Zeile mit „Microsoft Basic Data RECOVERY500“ oder ähnlich.
+Wichtig ist:
 
-Auf dem Mac Terminal:
+* der Gerätename der ganzen Platte, z. B. `/dev/disk3`
+* der Gerätename der Partition, z. B. `/dev/disk3s1`
+
+Schreibe dir diese zwei Bezeichnungen genau auf (disk3 / disk3s1). Wir brauchen die gleich.
+
+Wenn du unsicher bist, nimm die Zeile mit der größten Größe (z. B. 500.1 GB) die NICHT disk0 ist.
+
+---
+
+4. Versuch, die Platte manuell einzuhängen (mounten)
+   Jetzt versuchen wir, ob macOS das Volume einfach nicht automatisch eingebunden hat.
+
+Im Terminal (pass den Namen an, falls deine Platte anders heißt als `disk3s1`):
 
 ```bash
 diskutil mount /dev/disk3s1
 ```
 
-Wenn danach der Finder ein neues Volume anzeigt (RECOVERY500 o. ä.), war das Problem nur: macOS hat es nicht automatisch gemountet. Dann bist du fertig.
+Drücke Enter.
 
-Wenn du eine Fehlermeldung bekommst wie „Volume on disk3s1 appears to be damaged and cannot be mounted“, dann liegt der Fehler tiefer. Dann weiter.
+Erwartetes Ergebnis:
 
-3. Prüfe, ob das Dateisystem von macOS überhaupt erkannt wurde
-   Immer noch auf dem Mac Terminal:
+* Wenn keine Fehlermeldung kommt:
+  Finder öffnen. Links in der Seitenleiste unter „Orte“ sollte jetzt ein Eintrag erscheinen, z. B. „RECOVERY500“.
+  Dann bist du fertig. Die Platte ist gemountet und du kannst Dateien darauf kopieren.
+
+* Wenn eine Fehlermeldung kommt wie „Volume on disk3s1 could not be mounted“ oder „Filesystem not recognized“ gehe zu Schritt 5.
+
+---
+
+5. Prüfen, was macOS von der Partition hält
+   Wir fragen jetzt den Mac ab, ob er das Dateisystem erkennt. Das sagt uns, ob die Platte neu formatiert werden muss.
+
+Im Terminal:
 
 ```bash
 diskutil info /dev/disk3s1
 ```
 
-Wichtige Felder:
+Drücke Enter.
 
-* `File System Personality: exfat` → gut
-* `Mounted: No` → heißt nur noch nicht eingehängt
-* `Read-Only Media: No`
-* `File System Integrity Check: ...`
+Du bekommst viele Zeilen. Die wichtigen Felder:
 
-Wenn `File System Personality` leer ist oder „Unknown“ zeigt, dann hat macOS die Partition zwar gesehen, aber die exFAT-Struktur nicht akzeptiert.
+* `File System Personality:`
 
-Das passiert manchmal wenn Linux `parted` eine GPT schreibt, aber die Partition keinen Typ-GUID-Eintrag `Basic Data` bekommen hat oder wenn die Platte nicht sauber ausgeworfen wurde.
+  * Wenn hier `exfat` steht, dann versteht macOS das Dateisystem grundsätzlich.
+  * Wenn hier sowas steht wie `Unknown` oder es steht gar nichts sinnvolles da, dann wurde das Volume von Linux so angelegt, dass macOS damit nichts anfangen kann.
 
-Lösung in diesem Fall: Platte am Mac neu als exFAT formatieren (dabei gehen die Daten verloren, also nur machen wenn du noch nichts Wichtiges drauf kopiert hast). Wenn die Platte schon deine wiederhergestellten Dateien enthält, nicht neu formatieren sondern weiter unten „Variante ohne Löschen“ lesen.
+* `Mounted:`
 
-4. Wenn Platte leer ist (noch nix rüberkopiert oder egal wenn gelöscht wird)
-   Dann auf dem Mac im Terminal:
+  * Wenn hier `Yes`, bist du fertig.
+  * Wenn hier `No`, hat macOS es erkannt, aber nicht eingehängt.
+
+Jetzt zwei Fälle:
+
+Fall A: File System Personality ist `exfat`, aber `Mounted: No`
+Das bedeutet: Das Volume ist eigentlich ok, aber wurde nicht sauber ausgeworfen oder hat ein „schmutziges Bit“. Wir reparieren es kurz und mounten es dann.
+
+Gib ein:
+
+```bash
+sudo fsck_exfat -y /dev/disk3s1
+diskutil mount /dev/disk3s1
+```
+
+Hinweis: Nach `sudo fsck_exfat` fragt macOS eventuell nach deinem Mac-Login-Passwort. Das ist normal.
+
+Wenn dieser Mount klappt: Finder öffnen. Die Festplatte sollte jetzt sichtbar sein. Fertig.
+
+Fall B: File System Personality ist leer oder Unknown
+Das heißt: macOS erkennt das Dateisystem nicht als gültiges exFAT. Dann muss die Platte am Mac neu formatiert werden, damit sie in Zukunft zuverlässig erkannt wird. Danach funktioniert sie dauerhaft mit macOS und iPadOS. Das ist der sichere Weg. Achtung: dabei gehen alle Daten weg, die auf der Platte drauf sind.
+
+Wenn die Platte im Moment leer ist bzw. du einverstanden bist, dass sie neu beschrieben wird, mach Schritt 6.
+
+Wenn auf der Platte schon wichtige wiederhergestellte Daten liegen, halte sofort an und sag einem technisch erfahrenen Menschen, dass vorher kopiert werden muss. Nicht weitermachen.
+
+---
+
+6. Platte am Mac neu formatieren (ExFAT mit GUID)
+   Dieser Schritt macht die Festplatte 100 % Mac- und iPad-kompatibel. Danach erscheint sie sofort im Finder.
+
+Wichtig: Nimm den Gerätenamen der gesamten Platte, also ohne „s1“. Beispiel: `/dev/disk3`, nicht `/dev/disk3s1`.
+
+Im Terminal:
 
 ```bash
 diskutil eraseDisk ExFAT RECOVERY500 GPT /dev/disk3
 ```
 
-Erklärung:
+Erklärung für den Menschen am Mac:
 
-* `ExFAT` = Dateisystem (macOS schreibt saubere exFAT-Struktur)
-* `RECOVERY500` = Name im Finder
-* `GPT` = GUID Partition Table
-* `/dev/disk3` = deine externe Platte (nicht `disk0`, das ist dein interner Mac, also Vorsicht)
+* `eraseDisk` = löscht alles auf dieser externen Platte
+* `ExFAT` = plattformunabhängiges Dateisystem, von macOS, iPadOS und Windows les- und schreibbar
+* `RECOVERY500` = der Name, wie die Platte dann im Finder heißt
+* `GPT` = moderne Partitionsstruktur (GUID Partition Table)
+* `/dev/disk3` = deine Platte. Nicht vertippen. Nicht `disk0` nehmen, das wäre die interne Mac-Platte.
 
-Nach diesem Befehl sollte die Platte sofort im Finder als „RECOVERY500“ erscheinen. Danach kannst du die Ordner `recup_dir.1`, `recup_dir.2`, `recup_dir.3` ganz normal von Linux neu rüberkopieren auf diese Platte.
+Nach diesem Befehl:
 
-5. Wenn die Platte NICHT leer ist und du willst die Daten nicht verlieren
-   Dann musst du die Ursache klären statt zu formatieren. Die zwei üblichen Gründe:
-6. Die Partition ist als „Microsoft Basic Data“, aber macOS mountet sie nicht automatisch weil das Volume ein Dirty-Bit gesetzt hat. Dann hilft:
+* Der Finder sollte sofort automatisch ein neues Laufwerk `RECOVERY500` anzeigen.
+* Das Laufwerk ist leer und einsatzbereit.
+* Ab jetzt kann man ganz normal Dateien rüberziehen wie bei einem USB-Stick.
 
-   ```bash
-   sudo fsck_exfat -y /dev/disk3s1
-   diskutil mount /dev/disk3s1
-   ```
-7. Der Mac hat sie als intern klassifiziert und der Finder zeigt keine externen Laufwerke auf dem Desktop/Seitenleiste.
+---
 
-Kurz prüfen in macOS Finder-Einstellungen:
+7. Sichtbarkeit in Finder aktivieren (Kontrollpunkt für absolute Anfänger)
+   Falls die Platte da ist, aber man sie nicht sieht:
 
-* Finder öffnen.
-* Menüleiste → „Finder“ → „Einstellungen“.
-* Tab „Allgemein“.
-* Bei „Diese Objekte auf dem Schreibtisch anzeigen“ muss „Externe Festplatten“ aktiv sein.
-* Tab „Seitenleiste“.
-* „Externe Festplatten“ anhaken.
+8. Öffne Finder.
 
-Wenn sie danach in der Seitenleiste auftaucht, ist alles normal. macOS hatte sie nur versteckt.
+9. In der Menüleiste oben: „Finder“ anklicken → „Einstellungen“.
 
-Zusammengefasst:
+10. Tab „Allgemein“.
 
-1. Auf dem Mac im Terminal:
+11. Dort anhaken: „Externe Festplatten“.
 
-   ```bash
-   diskutil list
-   diskutil mount /dev/disk3s1
-   diskutil info /dev/disk3s1
-   ```
+12. Dann Tab „Seitenleiste“.
 
-   (mit deinem echten diskX/diskXs1)
+13. Dort auch „Externe Festplatten“ anhaken.
 
-2. Falls das sauber mountet → alles ok.
+Danach taucht sie links in der Seitenleiste unter „Orte“ auf.
 
-3. Falls Fehler beim Mount:
+---
 
-   * Wenn Platte leer / neu → `diskutil eraseDisk ExFAT RECOVERY500 GPT /dev/disk3`, dann neu von Kali kopieren.
-   * Wenn Platte enthält schon gerettete Daten → `sudo fsck_exfat -y /dev/disk3s1` und danach nochmal `diskutil mount /dev/disk3s1`.
+8. Was du am Ende erwarten sollst
+   Nach Schritt 4 oder Schritt 6 soll im Finder links ein Eintrag sein wie „RECOVERY500“.
+   Wenn du den anklickst, öffnet sich ein komplett leeres Fenster. Ab jetzt kannst du Ordner wie `recup_dir.1`, `recup_dir.2`, `recup_dir.3` einfach per Drag & Drop vom anderen Rechner (oder über Netzwerkfreigabe) rüberkopieren.
 
-Nächster Schritt: Nenne mir kurz
+---
 
-* den Identifier der Partition so wie macOS ihn zeigt (`disk?`, `disk?s1`)
-* ob du schon Daten drauf kopiert hattest oder ob die Platte noch leer ist seit dem Format unter Linux.
+Kurzfassung für die Person am Mac, ohne Erklärtext:
 
-Dann gebe ich dir den exakten einen Befehl den du am Mac laufen lässt.
+1. Terminal öffnen.
+2. Prüfen welche Disk die externe ist:
+
+```bash
+diskutil list
+```
+
+Merke dir `/dev/diskX` und `/dev/diskXs1`.
+
+3. Mount versuchen:
+
+```bash
+diskutil mount /dev/diskXs1
+```
+
+4. Wenn Fehler:
+
+```bash
+diskutil info /dev/diskXs1
+```
+
+* Wenn `File System Personality: exfat`:
+
+```bash
+sudo fsck_exfat -y /dev/diskXs1
+diskutil mount /dev/diskXs1
+```
+
+* Wenn nicht exFAT erkannt ODER Platte darf gelöscht werden:
+
+```bash
+diskutil eraseDisk ExFAT RECOVERY500 GPT /dev/diskX
+```
+
+5. Finder öffnen. Externe Festplatten in den Finder-Einstellungen sichtbar schalten.
+
+---
+
+Das ist der komplette Ablauf. Danach ist die Platte les- und schreibbar auf macOS und iPadOS und kann normal für die geretteten Daten genutzt werden.
