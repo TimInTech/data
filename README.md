@@ -1,213 +1,381 @@
-Ziel: Die externe Festplatte soll auf dem Mac normal im Finder erscheinen, ohne Linux. Du bekommst eine klare Schritt-für-Schritt-Anleitung, die eine nicht-technische Person am Mac alleine ausführen kann. Sie deckt beide Fälle ab: Platte ist leer oder Platte enthält schon Daten.
+# 🎹 KOMPLETTER SETUP-GUIDE: Nektar Panorama T1 + PreSonus Studio 24c
 
-Ich nenne die Festplatte hier „RECOVERY500“. Wenn bei dir ein anderer Name angezeigt wird, ist das egal.
-
----
-
-1. Festplatte anschließen
-   Schließe die externe Festplatte per USB am Mac an.
-   Wenn ein Fenster kommt mit
-   „Das angeschlossene Medium konnte von diesem Computer nicht gelesen werden“
-   dann klicke auf „Ignorieren“. Nicht „Auswerfen“.
+## 📋 INHALTSVERZEICHNIS
+1. [Benötigte Kabel](#kabel)
+2. [Treiber & Software Downloads](#downloads)
+3. [DAW Software](#daw)
+4. [Kostenlose VST Plugins](#plugins)
+5. [Schritt-für-Schritt Installation](#installation)
+6. [MIDI & Audio Konfiguration](#konfiguration)
 
 ---
 
-2. Terminal öffnen
-   Öffne das Terminal auf dem Mac:
-   Klicke unten im Dock auf das Launchpad (graues Rakettsymbol)
-   Suche nach „Terminal“
-   Starte Terminal.
+## 🔌 BENÖTIGTE KABEL {#kabel}
 
-Wir arbeiten jetzt nur noch in diesem Terminal.
+### Essentiell (Müssen Sie haben):
 
----
+| Kabel | Verwendung | Länge | Preis ca. |
+|-------|-----------|-------|-----------|
+| **USB-B zu USB-A/C Kabel** | Nektar T1 → Computer | 2-3m | 5-15€ |
+| **USB-C zu USB-A/C Kabel** | PreSonus Studio 24c → Computer | 2m | 10-20€ |
+| **2x TRS-Kabel (6,3mm Klinke, symmetrisch)** | Studio 24c Main Out → Studiomonitore | 2-3m | 15-30€ |
 
-3. Prüfen, wie die Festplatte heißt
-   Gib im Terminal ein:
+### Optional (je nach Setup):
 
-```bash
-diskutil list
-```
-
-Drücke Enter.
-
-Der Mac zeigt jetzt alle Speichergeräte. Du siehst mehrere Blöcke:
-
-* `disk0` ist fast immer die eingebaute Mac-SSD. Finger weg.
-* Weiter unten findest du etwas wie `disk2` oder `disk3` oder `disk4` mit Größe ungefähr 500 GB. Das ist deine externe Festplatte.
-  In diesem Block steht oben z. B. `GUID_partition_scheme`.
-  Darunter steht eine Zeile mit etwas wie `disk3s1` und Typ `Microsoft Basic Data` oder `Windows_NTFS` oder `Linux Filesystem` oder eventuell `Untitled`.
-
-Wichtig ist:
-
-* der Gerätename der ganzen Platte, z. B. `/dev/disk3`
-* der Gerätename der Partition, z. B. `/dev/disk3s1`
-
-Schreibe dir diese zwei Bezeichnungen genau auf (disk3 / disk3s1). Wir brauchen die gleich.
-
-Wenn du unsicher bist, nimm die Zeile mit der größten Größe (z. B. 500.1 GB) die NICHT disk0 ist.
+| Kabel | Verwendung | Preis ca. |
+|-------|-----------|-----------|
+| **XLR-Kabel (3-5m)** | Mikrofon → Studio 24c | 10-25€ |
+| **6,3mm Klinkenkabel** | Gitarre/Bass → Studio 24c | 10-20€ |
+| **Kopfhörer-Adapter 3,5mm → 6,3mm** | Falls Kopfhörer mit kleinem Stecker | 5-10€ |
 
 ---
 
-4. Versuch, die Platte manuell einzuhängen (mounten)
-   Jetzt versuchen wir, ob macOS das Volume einfach nicht automatisch eingebunden hat.
+## 💾 TREIBER & SOFTWARE DOWNLOADS {#downloads}
 
-Im Terminal (pass den Namen an, falls deine Platte anders heißt als `disk3s1`):
+### **PreSonus Studio 24c**
 
-```bash
-diskutil mount /dev/disk3s1
-```
+#### Universal Control (Pflicht-Download)
+Das Studio 24c ist USB-Class-Compliant, es sind keine speziellen Treiber oder Anwendungen zum Download und zur Installation erforderlich [PreSonus](https://legacy.presonus.com/products/Studio-24c) . Trotzdem sollten Sie Universal Control installieren für erweiterte Funktionen:
 
-Drücke Enter.
+🔗 **Download-Links:**
+- **Offizielle PreSonus Download-Seite:** https://www.presonus.com/products/Universal-Control/downloads
+- **Legacy Download-Seite:** https://legacy.presonus.com/products/Studio-24c/downloads
 
-Erwartetes Ergebnis:
+**Wichtig:** Die neueste Version ist 4.2.0.96206, veröffentlicht am 05.08.2024 [Updatestar](https://universal-control.updatestar.com/en)
 
-* Wenn keine Fehlermeldung kommt:
-  Finder öffnen. Links in der Seitenleiste unter „Orte“ sollte jetzt ein Eintrag erscheinen, z. B. „RECOVERY500“.
-  Dann bist du fertig. Die Platte ist gemountet und du kannst Dateien darauf kopieren.
-
-* Wenn eine Fehlermeldung kommt wie „Volume on disk3s1 could not be mounted“ oder „Filesystem not recognized“ gehe zu Schritt 5.
-
----
-
-5. Prüfen, was macOS von der Partition hält
-   Wir fragen jetzt den Mac ab, ob er das Dateisystem erkennt. Das sagt uns, ob die Platte neu formatiert werden muss.
-
-Im Terminal:
-
-```bash
-diskutil info /dev/disk3s1
-```
-
-Drücke Enter.
-
-Du bekommst viele Zeilen. Die wichtigen Felder:
-
-* `File System Personality:`
-
-  * Wenn hier `exfat` steht, dann versteht macOS das Dateisystem grundsätzlich.
-  * Wenn hier sowas steht wie `Unknown` oder es steht gar nichts sinnvolles da, dann wurde das Volume von Linux so angelegt, dass macOS damit nichts anfangen kann.
-
-* `Mounted:`
-
-  * Wenn hier `Yes`, bist du fertig.
-  * Wenn hier `No`, hat macOS es erkannt, aber nicht eingehängt.
-
-Jetzt zwei Fälle:
-
-Fall A: File System Personality ist `exfat`, aber `Mounted: No`
-Das bedeutet: Das Volume ist eigentlich ok, aber wurde nicht sauber ausgeworfen oder hat ein „schmutziges Bit“. Wir reparieren es kurz und mounten es dann.
-
-Gib ein:
-
-```bash
-sudo fsck_exfat -y /dev/disk3s1
-diskutil mount /dev/disk3s1
-```
-
-Hinweis: Nach `sudo fsck_exfat` fragt macOS eventuell nach deinem Mac-Login-Passwort. Das ist normal.
-
-Wenn dieser Mount klappt: Finder öffnen. Die Festplatte sollte jetzt sichtbar sein. Fertig.
-
-Fall B: File System Personality ist leer oder Unknown
-Das heißt: macOS erkennt das Dateisystem nicht als gültiges exFAT. Dann muss die Platte am Mac neu formatiert werden, damit sie in Zukunft zuverlässig erkannt wird. Danach funktioniert sie dauerhaft mit macOS und iPadOS. Das ist der sichere Weg. Achtung: dabei gehen alle Daten weg, die auf der Platte drauf sind.
-
-Wenn die Platte im Moment leer ist bzw. du einverstanden bist, dass sie neu beschrieben wird, mach Schritt 6.
-
-Wenn auf der Platte schon wichtige wiederhergestellte Daten liegen, halte sofort an und sag einem technisch erfahrenen Menschen, dass vorher kopiert werden muss. Nicht weitermachen.
+#### System-Anforderungen:
+- Windows 10/11 (64-bit)
+- macOS 10.13 oder neuer
+- USB 2.0 oder höher
 
 ---
 
-6. Platte am Mac neu formatieren (ExFAT mit GUID)
-   Dieser Schritt macht die Festplatte 100 % Mac- und iPad-kompatibel. Danach erscheint sie sofort im Finder.
+### **Nektar Panorama T1**
 
-Wichtig: Nimm den Gerätenamen der gesamten Platte, also ohne „s1“. Beispiel: `/dev/disk3`, nicht `/dev/disk3s1`.
+#### DAW Integration & Firmware
+Das System ist USB-Class-Compliant, es wird kein Treiber benötigt für Apple iOS, Apple OSX, Windows XP oder höher [Nektar](https://nektartech.com/panorama-p1/)
 
-Im Terminal:
+🔗 **Download nach Produktregistrierung:**
+1. **Konto erstellen:** https://support.nektartech.com/
+2. **Produkt registrieren** (Seriennummer auf der Rückseite des Geräts)
+3. Downloads erscheinen in Ihrem Account
 
-```bash
-diskutil eraseDisk ExFAT RECOVERY500 GPT /dev/disk3
-```
+**Was Sie downloaden sollten:**
+- **DAW Support Package** (enthält Integration für Ihre DAW)
+- **Firmware Update** (aktuellste Version)
+- **Benutzerhandbuch (PDF)**
 
-Erklärung für den Menschen am Mac:
-
-* `eraseDisk` = löscht alles auf dieser externen Platte
-* `ExFAT` = plattformunabhängiges Dateisystem, von macOS, iPadOS und Windows les- und schreibbar
-* `RECOVERY500` = der Name, wie die Platte dann im Finder heißt
-* `GPT` = moderne Partitionsstruktur (GUID Partition Table)
-* `/dev/disk3` = deine Platte. Nicht vertippen. Nicht `disk0` nehmen, das wäre die interne Mac-Platte.
-
-Nach diesem Befehl:
-
-* Der Finder sollte sofort automatisch ein neues Laufwerk `RECOVERY500` anzeigen.
-* Das Laufwerk ist leer und einsatzbereit.
-* Ab jetzt kann man ganz normal Dateien rüberziehen wie bei einem USB-Stick.
-
----
-
-7. Sichtbarkeit in Finder aktivieren (Kontrollpunkt für absolute Anfänger)
-   Falls die Platte da ist, aber man sie nicht sieht:
-
-8. Öffne Finder.
-
-9. In der Menüleiste oben: „Finder“ anklicken → „Einstellungen“.
-
-10. Tab „Allgemein“.
-
-11. Dort anhaken: „Externe Festplatten“.
-
-12. Dann Tab „Seitenleiste“.
-
-13. Dort auch „Externe Festplatten“ anhaken.
-
-Danach taucht sie links in der Seitenleiste unter „Orte“ auf.
+#### Unterstützte DAWs mit Deep Integration:
+- ✅ Studio One
+- ✅ Cubase/Nuendo
+- ✅ Ableton Live
+- ✅ Logic Pro
+- ✅ FL Studio
+- ✅ Reaper
+- ✅ Bitwig Studio
 
 ---
 
-8. Was du am Ende erwarten sollst
-   Nach Schritt 4 oder Schritt 6 soll im Finder links ein Eintrag sein wie „RECOVERY500“.
-   Wenn du den anklickst, öffnet sich ein komplett leeres Fenster. Ab jetzt kannst du Ordner wie `recup_dir.1`, `recup_dir.2`, `recup_dir.3` einfach per Drag & Drop vom anderen Rechner (oder über Netzwerkfreigabe) rüberkopieren.
+## 🎵 DAW SOFTWARE (Digital Audio Workstation) {#daw}
+
+### **Studio One Prime** (KOSTENLOS - Empfohlen!)
+
+Studio One Prime ist eine kostenlose DAW von Presonus, die vollkommen in der Lage ist, Aufnahme, Bearbeitung und Mixing/Mastering mit integrierten Audio-Effekten und Plugins zu handhaben [Musiciangoods](https://musiciangoods.com/en-us/blogs/music-production/the-ultimate-list-of-best-free-daws-in-2024)
+
+#### Features:
+- ✅ Unbegrenzte Audio- & MIDI-Spuren
+- ✅ 9 native Effekt-Plugins (EQ, Kompressor, Reverb, Delay, etc.)
+- ✅ Presence Virtual Instrument mit 100+ Presets
+- ✅ Drag & Drop Workflow
+- ✅ Keine Zeitbeschränkung
+- ❌ **KEIN VST-Plugin Support** (nur Native Effekte)
+
+🔗 **Download Studio One Prime:**
+https://www.presonus.com/pages/studio-one-pro-free-demo
+
+**Installation:**
+1. Installer herunterladen
+2. Installieren
+3. Bei der Aktivierung "Free/Prime" auswählen
+4. Sofort nutzbar (kein Account erforderlich)
 
 ---
 
-Kurzfassung für die Person am Mac, ohne Erklärtext:
+### Alternative kostenlose DAWs:
 
-1. Terminal öffnen.
-2. Prüfen welche Disk die externe ist:
-
-```bash
-diskutil list
-```
-
-Merke dir `/dev/diskX` und `/dev/diskXs1`.
-
-3. Mount versuchen:
-
-```bash
-diskutil mount /dev/diskXs1
-```
-
-4. Wenn Fehler:
-
-```bash
-diskutil info /dev/diskXs1
-```
-
-* Wenn `File System Personality: exfat`:
-
-```bash
-sudo fsck_exfat -y /dev/diskXs1
-diskutil mount /dev/diskXs1
-```
-
-* Wenn nicht exFAT erkannt ODER Platte darf gelöscht werden:
-
-```bash
-diskutil eraseDisk ExFAT RECOVERY500 GPT /dev/diskX
-```
-
-5. Finder öffnen. Externe Festplatten in den Finder-Einstellungen sichtbar schalten.
+| DAW | Vorteile | Nachteile | Link |
+|-----|----------|-----------|------|
+| **Cakewalk by BandLab** | VST-Support, professionelle Features | Komplexer für Anfänger | https://www.bandlab.com/products/cakewalk |
+| **REAPER** (60 Tage Trial) | Sehr leistungsstark, VST-Support | $60 nach Trial | https://www.reaper.fm |
+| **Tracktion Waveform Free** | VST-Support, moderne UI | Weniger Tutorials | https://www.tracktion.com/products/waveform-free |
 
 ---
 
-Das ist der komplette Ablauf. Danach ist die Platte les- und schreibbar auf macOS und iPadOS und kann normal für die geretteten Daten genutzt werden.
+## 🎹 KOSTENLOSE VST PLUGINS & SAMPLES {#plugins}
+
+**WICHTIG:** Studio One Prime unterstützt **KEINE** VST-Plugins. Diese Liste ist für andere DAWs (Cakewalk, REAPER, etc.).
+
+### **Synthesizer (Kostenlose VST-Plugins)**
+
+#### 1. **Tyrell N6** (U-HE)
+Der Tyrell N6 ist einer der besten kostenlosen VST-Synths, der einen analogen Sound bietet, inspiriert von Vintage-Klassik-Synths mit zwei Oszillatoren, Noise, Ringmodulation und 580 Werkspresets [Sonic Academy](https://www.sonicacademy.com/blog/best-free-vst-plugins-for-music-production-2024)
+- 🔗 Download: https://u-he.com/products/tyrelln6/
+
+#### 2. **OB-Xd** (DiscoDSP)
+- Emulation des Oberheim OB-X
+- 2 Oszillatoren, Reverb & Chorus
+- 🔗 Download: https://www.discodsp.com/obxd/
+
+#### 3. **Dexed** (Digital Suburban)
+- Yamaha DX7 Emulation
+- FM-Synthese
+- 🔗 Download: https://asb2m10.github.io/dexed/
+
+#### 4. **Helm** (Matt Tytel)
+- Moderner Subtractive Synth
+- Open Source
+- 🔗 Download: https://tytel.org/helm/
+
+---
+
+### **Drum Plugins (Kostenlose VST-Plugins)**
+
+#### 1. **Steven Slate Drums SSD Free**
+Steven Slate Drums ist ein ikonisches kostenloses Drum-Plugin. Heutzutage haben wir Zugriff auf die SSD Free Edition, und es klingt großartig mit einem Kit, dem "Deluxe 2 Kit", mit drei Variationen [Bedroom Producers Blog](https://bedroomproducersblog.com/2022/01/22/drum-vst-plugins/)
+- 🔗 Download: https://stevenslatedrums.com/ssd5/#ssd5-free
+
+#### 2. **MT Power Drum Kit 2**
+- Vollständiges Schlagzeug-Kit
+- Hunderte von Grooves
+- 🔗 Download: https://www.powerdrumkit.com/
+
+#### 3. **MODO Drum CS** (IK Multimedia)
+- Physical Modeling Drum Synth
+- Anpassbare Parameter
+- 🔗 Download: https://www.ikmultimedia.com/products/mododrumcs/
+
+#### 4. **MiniSpillage** (AudioSpillage)
+MiniSpillage ist ein kompakter Drum-Synth mit drei hochwertigen Drum-Synthesis-Modellen: Bass Drum, Wood Drum und Hi-Hat [ArtMaster](https://www.artmaster.com/articles/the-ultimate-guide-to-vst-plugins)
+- 🔗 Download: https://www.audiospillage.com/minispillage/
+
+#### 5. **Sitala** (Decomposer)
+- Drum Sampler
+- Drag & Drop
+- 🔗 Download: https://decomposer.de/sitala/
+
+---
+
+### **Sample-Bibliotheken (Kostenlos)**
+
+#### **Spitfire LABS** (Spitfire Audio)
+Spitfire Audio ist zu einem bekannten Namen geworden für ihre bahnbrechenden Sample-Packs, und ihr kostenloser Sample-Player LABS ist ohne Zweifel eines der besten kostenlosen Instrument-Plugins [Sonic Academy](https://www.sonicacademy.com/blog/best-free-vst-plugins-for-music-production-2024)
+- Streicher, Pianos, Atmosphären, Percussion
+- 🔗 Download: https://labs.spitfireaudio.com/
+
+#### **99Sounds**
+- Kostenlose Sample Packs
+- 🔗 https://99sounds.org/free-sound-effects/
+
+---
+
+## 🔧 SCHRITT-FÜR-SCHRITT INSTALLATION {#installation}
+
+### **Phase 1: Hardware verbinden**
+
+#### Schritt 1: Computer ausschalten (empfohlen)
+
+#### Schritt 2: Nektar Panorama T1 anschließen
+```
+Nektar T1 (USB-B Anschluss) → USB-Kabel → Computer (USB-A/C)
+```
+- Das Keyboard wird über USB mit Strom versorgt
+- Keine separate Stromversorgung notwendig
+
+#### Schritt 3: PreSonus Studio 24c anschließen
+```
+PreSonus Studio 24c (USB-C) → USB-C Kabel → Computer (USB-A/C)
+```
+- Das Interface wird über USB mit Strom versorgt
+
+#### Schritt 4: Lautsprecher/Kopfhörer anschließen
+
+**Option A - Studiomonitore:**
+```
+Studio 24c Main Out (1L) → TRS-Kabel → Linker Lautsprecher
+Studio 24c Main Out (2R) → TRS-Kabel → Rechter Lautsprecher
+```
+
+**Option B - Kopfhörer:**
+```
+Kopfhörer (6,3mm Klinke) → Studio 24c "Phones" Ausgang (Vorderseite)
+```
+
+#### Schritt 5: Computer einschalten
+
+---
+
+### **Phase 2: Treiber & Software installieren**
+
+#### Schritt 6: PreSonus Universal Control installieren
+1. Download von https://www.presonus.com/products/Universal-Control/downloads
+2. Installer ausführen
+3. Anweisungen folgen
+4. Computer neu starten
+
+#### Schritt 7: Nektar Account erstellen & Produkt registrieren
+1. Gehe zu https://support.nektartech.com/
+2. Account erstellen
+3. Produkt registrieren (Seriennummer auf Rückseite des T1)
+4. DAW Support Package für Ihre DAW herunterladen
+5. Installer ausführen
+
+#### Schritt 8: DAW installieren (Studio One Prime)
+1. Download von https://www.presonus.com/pages/studio-one-pro-free-demo
+2. Installer ausführen
+3. Bei Aktivierung "Free" wählen
+4. Fertig!
+
+---
+
+### **Phase 3: Audio Interface konfigurieren**
+
+#### In Windows:
+
+1. **Windows Sound-Einstellungen öffnen:**
+   - Rechtsklick auf Lautsprecher-Symbol in Taskleiste
+   - "Sound-Einstellungen"
+
+2. **Studio 24c als Standard-Gerät setzen:**
+   - Ausgabegerät: "PreSonus Studio 24c"
+   - Eingabegerät: "PreSonus Studio 24c"
+
+3. **Sample Rate einstellen (Universal Control):**
+   - Universal Control öffnen
+   - Sample Rate: 44100 Hz oder 48000 Hz
+   - Buffer Size: 256 oder 512 Samples (für Anfang)
+
+#### In macOS:
+
+1. **System-Einstellungen → Ton**
+2. Ausgabe: "PreSonus Studio 24c"
+3. Eingabe: "PreSonus Studio 24c"
+
+---
+
+## ⚙️ MIDI & AUDIO KONFIGURATION IN DER DAW {#konfiguration}
+
+### **Studio One Konfiguration**
+
+#### Audio-Einrichtung:
+
+1. **Studio One öffnen**
+2. **Studio One → Optionen → Audio-Setup** (Windows)
+   oder **Studio One → Preferences → Audio Setup** (Mac)
+3. **Audio-Gerät:** "PreSonus Studio 24c" auswählen
+4. **Sample Rate:** 44.1 kHz oder 48 kHz
+5. **Block Size (Latenz):** 256 oder 512 Samples
+
+#### MIDI-Einrichtung:
+
+1. **Studio One → Optionen → Externe Geräte** (Windows)
+   oder **Studio One → Preferences → External Devices** (Mac)
+2. **Hinzufügen → Nektar Panorama T1**
+3. **MIDI-Eingang:** "Nektar Panorama T1" aktivieren
+4. **MIDI-Ausgang:** "Nektar Panorama T1" aktivieren
+
+#### Erste Schritte in Studio One:
+
+1. **Neues Projekt erstellen**
+   - Song erstellen
+   - Tempo & Taktart wählen
+
+2. **Instrument-Spur hinzufügen**
+   - Rechtsklick im Spurbereich
+   - "Instrument-Spur hinzufügen"
+   - "Presence" (eingebauter Sampler) wählen
+
+3. **MIDI-Aufnahme testen**
+   - Spur scharf schalten (roter Button)
+   - Tasten auf Nektar T1 spielen
+   - Sie sollten Sound hören!
+
+---
+
+## 🎯 SIGNALFLUSS-ÜBERSICHT
+
+```
+┌─────────────────────┐
+│  Nektar Panorama T1 │ (MIDI-Signale)
+│   (MIDI-Keyboard)   │
+└──────────┬──────────┘
+           │ USB
+           ↓
+┌─────────────────────┐
+│     COMPUTER        │
+│   ┌─────────────┐   │
+│   │   DAW       │   │ ← Hier entsteht die Musik!
+│   │ (Studio One)│   │   (MIDI → Audio)
+│   └─────────────┘   │
+└──────────┬──────────┘
+           │ USB
+           ↓
+┌─────────────────────┐
+│ PreSonus Studio 24c │ (Audio-Signale)
+│  (Audio-Interface)  │
+└──────────┬──────────┘
+           │ TRS/Klinke
+           ↓
+┌─────────────────────┐
+│ Lautsprecher oder   │
+│    Kopfhörer        │
+└─────────────────────┘
+```
+
+---
+
+## 📚 WICHTIGE SUPPORT-LINKS
+
+### PreSonus:
+- **Support:** https://support.presonus.com
+- **Tutorials:** https://www.presonus.com/learn
+- **Forum:** https://forums.presonus.com
+
+### Nektar:
+- **Support:** https://support.nektartech.com
+- **Account:** https://nektartech.com/my-account
+- **Forum:** https://www.gearslutz.com (Nektar-Bereich)
+
+### Tutorials & Lernen:
+- **YouTube:** "Studio One Tutorial Deutsch"
+- **YouTube:** "Nektar Panorama Tutorial"
+- **PreSonus YouTube:** https://www.youtube.com/presonus
+
+---
+
+## ⚡ QUICK-START CHECKLIST
+
+- [ ] Alle Kabel gekauft/vorhanden
+- [ ] Nektar T1 mit Computer verbunden (USB)
+- [ ] PreSonus Studio 24c mit Computer verbunden (USB)
+- [ ] Lautsprecher/Kopfhörer angeschlossen
+- [ ] Universal Control installiert
+- [ ] Nektar Account erstellt & Produkt registriert
+- [ ] Nektar DAW Support installiert
+- [ ] Studio One Prime installiert
+- [ ] Audio-Gerät in Studio One: "Studio 24c" ausgewählt
+- [ ] MIDI-Gerät in Studio One: "Nektar Panorama T1" aktiviert
+- [ ] Erste Instrument-Spur erstellt
+- [ ] Sound-Test erfolgreich!
+
+---
+
+## 🎓 NÄCHSTE SCHRITTE NACH DEM SETUP
+
+1. **Tutorial ansehen:** "Studio One für Anfänger" auf YouTube
+2. **Nektar Integration testen:** Die Fader & Knöpfe steuern automatisch Ihre DAW
+3. **Erste Beats erstellen:** Mit den eingebauten Drum-Samples
+4. **VST-Plugins erkunden:** Falls Sie auf REAPER/Cakewalk umsteigen
+
+---
+
+**Viel Erfolg mit Ihrem Setup! Bei Fragen können Sie sich jederzeit an den Support wenden.** 🎵🎹🎧
